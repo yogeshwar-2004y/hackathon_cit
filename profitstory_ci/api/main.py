@@ -25,7 +25,7 @@ from api.products import router as products_router
 from db.database import init_db as init_sqlite_db, get_db, AgentRun, Product
 from agents.graph import build_graph
 
-app = FastAPI(title="ProfitStory CI Dashboard")
+app = FastAPI(title="Shadowspy.ai Dashboard")
 
 app.add_middleware(
     CORSMiddleware,

@@ -17,7 +17,7 @@ export default function Sidebar() {
 
   return (
     <div className="sidebar">
-      <div className="brand-logo">PROFITSTORY CI</div>
+      <div className="brand-logo">Shadowspy.ai</div>
       <div className="sidebar-seller">
         <div className="sidebar-seller-name">{seller?.business_name}</div>
         <div className="sidebar-seller-email">{seller?.email}</div>

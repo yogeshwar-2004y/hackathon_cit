@@ -19,7 +19,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-SECRET_KEY = os.getenv("JWT_SECRET", "profitstory-secret-2026")
+SECRET_KEY = os.getenv("JWT_SECRET", "shadowspy-secret-2026")
 ALGORITHM = "HS256"
 EXPIRY_DAYS = int(os.getenv("JWT_EXPIRY_DAYS", "7"))
 

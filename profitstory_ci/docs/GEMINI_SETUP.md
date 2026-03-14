@@ -10,7 +10,7 @@ The **detective_node** (in `agents/nodes.py`) uses an LLM to analyze competitor 
 
 ## 2. Configure environment
 
-In your **`.env`** (in the `profitstory_ci` folder), set:
+In your **`.env`** (in the project folder), set:
 
 ```bash
 # Use Gemini as the LLM provider (for Detective and other nodes)

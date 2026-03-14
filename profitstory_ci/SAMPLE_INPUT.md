@@ -1,4 +1,4 @@
-# Sample input for ProfitStory CI scan
+# Sample input for Shadowspy.ai scan
 
 ## Recommended: more reviews, less captcha
 

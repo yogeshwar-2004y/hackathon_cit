@@ -24,7 +24,7 @@ if _raw_url and (_raw_url.startswith("postgresql://") or _raw_url.startswith("po
 else:
     # Fallback for local dev without Neon (optional)
     DB_DIR = os.path.join(os.path.dirname(__file__), "..")
-    SQLITE_PATH = os.environ.get("SQLITE_DB_PATH", os.path.join(DB_DIR, "profitstory.db"))
+    SQLITE_PATH = os.environ.get("SQLITE_DB_PATH", os.path.join(DB_DIR, "shadowspy.db"))
     DATABASE_URL = f"sqlite:///{SQLITE_PATH}"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 

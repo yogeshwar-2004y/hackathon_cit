@@ -63,7 +63,7 @@ export default function PageSignup() {
     <div className="auth-page">
       <div className="auth-left">
         <div className="auth-brand">
-          <h1>ProfitStory CI</h1>
+          <h1>Shadowspy.ai</h1>
           <p>Net Profit over Gross Revenue</p>
         </div>
       </div>

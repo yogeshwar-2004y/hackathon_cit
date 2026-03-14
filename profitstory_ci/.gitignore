@@ -27,4 +27,5 @@ agent.log
 .vscode/
 *.swp
 *.swo
+shadowspy.db
 profitstory.db
