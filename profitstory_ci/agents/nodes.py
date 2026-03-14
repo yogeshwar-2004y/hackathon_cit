@@ -5,6 +5,7 @@ import datetime
 from agents.state import AgentState
 from agents.llm_config import get_llm, get_llm_json
 from scraper.amazon_scraper import scrape_product
+from scraper.outliers import clean_product_outliers, clean_cross_asin_price_outliers
 from api.db import save_price_to_db, save_review_stats
 from api.vector_db import embed_reviews, search_reviews
 
@@ -42,8 +43,12 @@ def watchman_node(state: AgentState) -> dict:
                 platform = platform.strip().lower() or "amazon"
             _emit_log(f"[WATCHMAN] Scraping {asin}...")
             data = scrape_product(platform, asin)
+            # Outlier detection and removal
+            data, single_changes = clean_product_outliers(data, asin)
+            for field, old_val, new_val, action in single_changes:
+                _emit_log(f"[WATCHMAN] Outlier {asin} {field}: {old_val} -> {new_val} ({action})")
             scraped_data[asin] = data
-            
+
             # Save to SQLite
             today = datetime.datetime.now().strftime("%Y-%m-%d")
             save_price_to_db(asin, data["price"], today)
@@ -60,9 +65,15 @@ def watchman_node(state: AgentState) -> dict:
             if data["reviews"]:
                 embed_reviews(asin, data["reviews"], today)
                 total_reviews += len(data["reviews"])
-                
+
+    # Cross-ASIN price outlier detection (IQR) and cap
+    scraped_data, cross_changes = clean_cross_asin_price_outliers(scraped_data)
+    for asin, field, old_val, new_val, action in cross_changes:
+        _emit_log(f"[WATCHMAN] Outlier {asin} {field}: {old_val} -> {new_val} ({action})")
+
     _emit_log(f"[WATCHMAN] Embedded {total_reviews} reviews into pgvector.")
-    
+    _emit_log(f"[WATCHMAN] Outlier detection/removal complete (per-product + cross-ASIN price IQR).")
+
     return {
         "scraped_data": scraped_data,
         "embeddings_done": True,

@@ -274,6 +274,130 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th,
+.data-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+.data-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Settings page: section spacing so nothing overlaps */
+.settings-page {
+  padding-bottom: 48px;
+}
+.settings-section {
+  display: block;
+  margin-bottom: 32px;
+  max-width: 560px;
+}
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+.settings-panel {
+  max-width: 100%;
+  padding-bottom: 28px;
+  overflow: visible;
+  position: relative;
+}
+
+/* Settings page: account form alignment */
+.settings-account-form .settings-account-label {
+  display: block;
+  margin-top: 16px;
+}
+.settings-account-form .settings-account-label:first-child {
+  margin-top: 0;
+}
+.settings-account-form .settings-account-label input,
+.settings-account-form .settings-account-label select {
+  width: 100%;
+  margin-top: 6px;
+  display: block;
+}
+.settings-account-form .btn-scan {
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+/* Settings page: Change password - hint and form */
+.settings-panel .panel-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+}
+.settings-password-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+  padding: 0;
+  display: block;
+}
+.settings-change-password-form {
+  display: block;
+}
+.settings-change-password-form .settings-label {
+  display: block;
+  margin-bottom: 18px;
+}
+.settings-change-password-form .settings-label:last-of-type {
+  margin-bottom: 20px;
+}
+.settings-change-password-form .settings-label input {
+  width: 100%;
+  margin-top: 6px;
+  display: block;
+}
+.settings-change-password-form .btn-scan {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+/* Settings page: API keys section */
+.settings-api-label {
+  display: block;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.settings-api-label input {
+  width: 100%;
+  margin-top: 6px;
+  display: block;
+}
+.settings-api-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 0;
+}
+
+/* Settings page: Danger zone */
+.settings-danger-panel {
+  border-color: var(--red);
+}
+.settings-danger-text {
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+  display: block;
+}
+.settings-danger-panel .btn-danger {
+  margin: 0;
+}
+
 /* Visible text inputs (Product ASIN, Competitor ASINs) - light background so they are readable */
 .input-visible {
   width: 100%;
@@ -811,6 +935,19 @@ body {
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 24px; }
 .modal-content { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 12px; padding: 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow: auto; }
+.add-competitor-modal { max-width: 560px; }
+.add-competitor-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); }
+.add-competitor-tabs button { padding: 10px 16px; background: none; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.add-competitor-tabs button:hover { color: var(--text-primary); }
+.add-competitor-tabs button.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+.add-competitor-hint { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+.bestsellers-list { max-height: 320px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 8px; padding: 8px; margin-bottom: 8px; background: var(--bg-main); }
+.bestsellers-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.bestsellers-item:hover { background: rgba(255,255,255,0.05); }
+.bestsellers-item input { flex-shrink: 0; }
+.bestsellers-rank { flex-shrink: 0; width: 28px; color: var(--text-muted); font-weight: 600; }
+.bestsellers-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.bestsellers-asin { flex-shrink: 0; font-size: 11px; color: var(--text-muted); font-family: monospace; }
 .modal-content label { display: block; margin-bottom: 12px; font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 .modal-content input, .modal-content select, .modal-content textarea { width: 100%; margin-top: 6px; padding: 10px 12px; background: var(--bg-main); border: 1px solid var(--border-light); border-radius: 8px; color: var(--text-primary); font-size: 14px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Target, Settings, LogOut } from 'lucide-react';
+import { Target, Settings, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import client from '../api/client';
 
@@ -39,6 +39,9 @@ export default function Sidebar() {
         <div className="nav-section-title">Account</div>
         <Link to="/settings" className={`nav-item ${location.pathname === '/settings' ? 'active' : ''}`}>
           <Settings size={14} /> Settings
+        </Link>
+        <Link to="/audit" className={`nav-item ${location.pathname === '/audit' ? 'active' : ''}`}>
+          <Shield size={14} /> Audit log
         </Link>
         <button type="button" className="nav-item nav-item-btn" onClick={logout}>
           <LogOut size={14} /> Logout

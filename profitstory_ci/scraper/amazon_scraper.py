@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import random
 import json
@@ -443,6 +444,144 @@ def scrape_amazon(asin: str) -> dict:
         return data
     print("[SCRAPER] Using mock data.")
     return MOCK_PRODUCTS.get(asin, _generate_mock(asin))
+
+
+# ---------------------------------------------------------------------------
+# Best Sellers Rank & Bestsellers category (top 20 competitors)
+# ---------------------------------------------------------------------------
+RE_ASIN = re.compile(r"/dp/([A-Z0-9]{10})(?:/|$|\?)", re.I)
+
+
+def _extract_bestsellers_rank_and_link(soup: BeautifulSoup) -> tuple[str | None, str | None, str | None]:
+    """
+    From a product page soup, extract Best Sellers Rank text, category name, and bestsellers path.
+    Returns (rank_text, category_name, path) e.g. ("#38 in Smartphones", "Smartphones", "/gp/bestsellers/electronics/1805560031").
+    """
+    rank_text: str | None = None
+    category_name: str | None = None
+    bestsellers_path: str | None = None
+
+    # Find any element containing "Best Sellers Rank" and then look for bestsellers link in its container
+    for el in soup.find_all(string=re.compile(r"best\s*sellers\s*rank|bestsellers\s*rank", re.I)):
+        parent = el.parent
+        for _ in range(10):
+            if parent is None:
+                break
+            text = parent.get_text(strip=True) if hasattr(parent, "get_text") else ""
+            if "best sellers rank" in text.lower() or "bestsellers rank" in text.lower():
+                rank_text = text.split("\n")[0].strip()[:200] if text else None
+            for a in parent.find_all("a", href=re.compile(r"/gp/bestsellers/.*/\d{6,}")):
+                href = a.get("href", "")
+                path = href.split("?")[0].strip()
+                if path.startswith("/"):
+                    bestsellers_path = path
+                    category_name = a.get_text(strip=True) or "Category"
+                    break
+            if bestsellers_path:
+                break
+            parent = getattr(parent, "parent", None)
+        if bestsellers_path:
+            break
+
+    if not bestsellers_path:
+        # Fallback: any link containing bestsellers and a numeric category id
+        for a in soup.select('a[href*="/gp/bestsellers/"]'):
+            href = a.get("href", "")
+            if re.search(r"/gp/bestsellers/[^/]+/\d{6,}", href):
+                bestsellers_path = href.split("?")[0].strip()
+                category_name = a.get_text(strip=True) or "Category"
+                if not rank_text:
+                    rank_text = "See category bestsellers"
+                break
+
+    return rank_text, category_name, bestsellers_path
+
+
+def fetch_bestsellers_page(path_or_url: str, limit: int = 20) -> list[dict]:
+    """
+    Fetch Amazon.in bestsellers category page and return top N items as [{"asin", "name", "rank"}, ...].
+    path_or_url: full URL or path like /gp/bestsellers/electronics/1805560031
+    """
+    if path_or_url.startswith("http"):
+        url = path_or_url.split("?")[0]
+    else:
+        path = path_or_url.split("?")[0].strip()
+        if not path.startswith("/"):
+            path = "/" + path
+        url = BASE_URL + path
+
+    try:
+        time.sleep(random.uniform(2.0, 3.5))
+        resp = requests.get(url, headers=AMAZON_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            print(f"[SCRAPER] Bestsellers page returned {resp.status_code}")
+            return []
+        if _is_amazon_block_page(resp.text):
+            print("[SCRAPER] Bestsellers page: block/captcha")
+            return []
+        soup = BeautifulSoup(resp.text, "html.parser")
+        results = []
+        seen_asins = set()
+
+        # Bestsellers page: product links in list items or divs; href contains /dp/ASIN
+        for a in soup.select('a[href*="/dp/"]'):
+            href = a.get("href", "")
+            m = RE_ASIN.search(href)
+            if not m:
+                continue
+            asin = m.group(1).upper()
+            if asin in seen_asins:
+                continue
+            seen_asins.add(asin)
+            name = a.get_text(strip=True) or f"Product {asin}"
+            if len(name) > 200:
+                name = name[:197] + "..."
+            rank = len(results) + 1
+            results.append({"asin": asin, "name": name, "rank": rank})
+            if len(results) >= limit:
+                break
+
+        return results[:limit]
+    except Exception as e:
+        print(f"[SCRAPER] Bestsellers page failed: {e}")
+        return []
+
+
+def fetch_bestsellers_for_asin(asin: str, top_n: int = 20) -> dict:
+    """
+    For a product ASIN, fetch its Best Sellers Rank from the product page, then fetch the category
+    bestsellers list and return top N as competitors. Excludes the given ASIN from the list.
+    Returns: { "rank_info": { "text", "category_name", "bestsellers_url" }, "top_20": [ {"asin", "name", "rank"} ], "error": str or None }
+    """
+    result = {"rank_info": None, "top_20": [], "error": None}
+    url = f"{BASE_URL}/dp/{asin.strip()}"
+    try:
+        time.sleep(random.uniform(2.0, 3.5))
+        resp = requests.get(url, headers=AMAZON_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            result["error"] = f"Product page returned {resp.status_code}"
+            return result
+        if _is_amazon_block_page(resp.text):
+            result["error"] = "Product page blocked or captcha"
+            return result
+        soup = BeautifulSoup(resp.text, "html.parser")
+        rank_text, category_name, bestsellers_path = _extract_bestsellers_rank_and_link(soup)
+        if not bestsellers_path:
+            result["error"] = "Best Sellers Rank / category link not found on product page"
+            return result
+        result["rank_info"] = {
+            "text": rank_text or "Category Bestsellers",
+            "category_name": category_name or "Category",
+            "bestsellers_url": BASE_URL + bestsellers_path,
+        }
+        top_20 = fetch_bestsellers_page(bestsellers_path, limit=top_n)
+        # Exclude the product's own ASIN
+        top_20 = [x for x in top_20 if x["asin"].upper() != asin.strip().upper()]
+        result["top_20"] = top_20[:top_n]
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
 
 
 def scrape_product(platform: str, platform_id: str) -> dict:

@@ -9,6 +9,9 @@ import PageProducts from './pages/PageProducts';
 import PageProductDetail from './pages/PageProductDetail';
 import PageIntelligence from './pages/PageIntelligence';
 import PageSettings from './pages/PageSettings';
+import PageAudit from './pages/PageAudit';
+import PageForgotPassword from './pages/PageForgotPassword';
+import PageResetPassword from './pages/PageResetPassword';
 import './index.css';
 
 function ProtectedRoute() {
@@ -28,12 +31,15 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<PageLogin />} />
       <Route path="/signup" element={<PageSignup />} />
+      <Route path="/forgot-password" element={<PageForgotPassword />} />
+      <Route path="/reset-password" element={<PageResetPassword />} />
       <Route path="/" element={<ProtectedRoute />}>
         <Route index element={<Navigate to="/products" replace />} />
         <Route path="products" element={<PageProducts />} />
         <Route path="products/:id" element={<PageProductDetail />} />
         <Route path="products/:id/intelligence" element={<PageIntelligence />} />
         <Route path="settings" element={<PageSettings />} />
+        <Route path="audit" element={<PageAudit />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

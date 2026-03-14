@@ -1,5 +1,6 @@
 """
 Product and competitor CRUD. All routes require auth; seller_id from JWT.
+Bestsellers: fetch top 20 in product's category (Amazon) for competitor selection.
 """
 from typing import Optional, List
 from pydantic import BaseModel
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db, Seller, Product, Competitor
 from api.auth import get_current_seller
+from scraper.amazon_scraper import fetch_bestsellers_for_asin
 
 router = APIRouter()
 
@@ -44,6 +46,16 @@ class CompetitorUpdate(BaseModel):
     competitor_name: Optional[str] = None
     platform_id: Optional[str] = None
     notes: Optional[str] = None
+
+
+class CompetitorBatchItem(BaseModel):
+    platform_id: str
+    competitor_name: str
+    notes: Optional[str] = None
+
+
+class CompetitorBatchCreate(BaseModel):
+    competitors: List[CompetitorBatchItem]
 
 
 class ProductOut(BaseModel):
@@ -205,6 +217,36 @@ def delete_product(
 # ---------------------------------------------------------------------------
 # Competitors
 # ---------------------------------------------------------------------------
+@router.get("/products/{product_id}/bestsellers", response_model=dict)
+def get_bestsellers(
+    product_id: int,
+    top_n: int = 20,
+    db: Session = Depends(get_db),
+    seller: Seller = Depends(get_current_seller),
+):
+    """
+    Fetch Best Sellers Rank and top N bestsellers in the product's category (Amazon only).
+    Uses product's platform_id (ASIN) to load the product page, extract BSR category link,
+    then scrape that category's bestsellers list. Excludes the product's own ASIN.
+    """
+    product = _get_product_or_403(db, product_id, seller.id)
+    if product.platform.strip().lower() != "amazon":
+        raise HTTPException(
+            status_code=400,
+            detail="Bestsellers are supported only for Amazon products. Use manual entry for other platforms.",
+        )
+    asin = product.platform_id.strip()
+    if len(asin) < 10:
+        raise HTTPException(status_code=400, detail="Invalid ASIN for bestsellers lookup.")
+    top_n = max(1, min(30, top_n))
+    result = fetch_bestsellers_for_asin(asin, top_n=top_n)
+    return {
+        "rank_info": result.get("rank_info"),
+        "top_20": result.get("top_20", []),
+        "error": result.get("error"),
+    }
+
+
 @router.post("/products/{product_id}/competitors", response_model=dict)
 def add_competitor(
     product_id: int,
@@ -225,6 +267,34 @@ def add_competitor(
     db.commit()
     db.refresh(comp)
     return _competitor_to_out(comp)
+
+
+@router.post("/products/{product_id}/competitors/batch", response_model=dict)
+def add_competitors_batch(
+    product_id: int,
+    body: CompetitorBatchCreate,
+    db: Session = Depends(get_db),
+    seller: Seller = Depends(get_current_seller),
+):
+    """Add multiple competitors at once (e.g. from Bestsellers selection). Uses product's platform."""
+    product = _get_product_or_403(db, product_id, seller.id)
+    platform = product.platform.strip().lower()
+    added = []
+    for item in body.competitors[:50]:  # cap at 50
+        comp = Competitor(
+            product_id=product.id,
+            seller_id=seller.id,
+            competitor_name=item.competitor_name.strip(),
+            platform=platform,
+            platform_id=item.platform_id.strip(),
+            notes=item.notes.strip() if item.notes else None,
+        )
+        db.add(comp)
+        added.append(comp)
+    db.commit()
+    for c in added:
+        db.refresh(c)
+    return {"added": len(added), "competitors": [_competitor_to_out(c) for c in added]}
 
 
 @router.get("/products/{product_id}/competitors", response_model=List[dict])

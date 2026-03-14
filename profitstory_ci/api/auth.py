@@ -1,7 +1,10 @@
 """
-Authentication: signup, login, JWT, get_current_seller.
+Authentication: signup, login, JWT, get_current_seller, password policy, audit, forgot/reset password.
 """
 import os
+import re
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -12,7 +15,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from db.database import get_db, Seller
+from db.database import get_db, Seller, AuditEvent, PasswordResetToken
 
 router = APIRouter()
 
@@ -55,6 +58,20 @@ class TokenOut(BaseModel):
     seller: SellerOut
 
 
+class ForgotPasswordBody(BaseModel):
+    email: str
+
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+
+class ChangePasswordBody(BaseModel):
+    old_password: str
+    new_password: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers (bcrypt directly to avoid passlib/bcrypt version mismatch on Python 3.14)
 # ---------------------------------------------------------------------------
@@ -90,6 +107,54 @@ def seller_to_out(s: Seller) -> SellerOut:
         platform=s.platform,
         is_active=s.is_active,
     )
+
+
+# ---------------------------------------------------------------------------
+# Password policy & audit
+# ---------------------------------------------------------------------------
+PASSWORD_MIN_LEN = 8
+PASSWORD_RE_UPPER = re.compile(r"[A-Z]")
+PASSWORD_RE_LOWER = re.compile(r"[a-z]")
+PASSWORD_RE_DIGIT = re.compile(r"\d")
+PASSWORD_RE_SPECIAL = re.compile(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]")
+
+def validate_password(password: str) -> tuple[bool, str]:
+    if len(password) < PASSWORD_MIN_LEN:
+        return False, f"Password must be at least {PASSWORD_MIN_LEN} characters"
+    if not PASSWORD_RE_UPPER.search(password):
+        return False, "Password must contain at least one uppercase letter"
+    if not PASSWORD_RE_LOWER.search(password):
+        return False, "Password must contain at least one lowercase letter"
+    if not PASSWORD_RE_DIGIT.search(password):
+        return False, "Password must contain at least one digit"
+    if not PASSWORD_RE_SPECIAL.search(password):
+        return False, "Password must contain at least one special character (!@#$%^&*...)"
+    return True, ""
+
+
+def _client_ip(request: Optional[Request]) -> Optional[str]:
+    if not request:
+        return None
+    return request.client.host if request.client else (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or None
+
+
+def log_audit(
+    db: Session,
+    seller_id: int,
+    action: str,
+    resource: Optional[str] = None,
+    detail: Optional[str] = None,
+    request: Optional[Request] = None,
+):
+    ev = AuditEvent(
+        seller_id=seller_id,
+        action=action,
+        resource=resource,
+        detail=detail,
+        ip_address=_client_ip(request),
+    )
+    db.add(ev)
+    db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +215,10 @@ def get_current_seller_from_token_or_query(request: Request, db: Session = Depen
 # Routes
 # ---------------------------------------------------------------------------
 @router.post("/signup", response_model=TokenOut)
-def signup(body: SignupBody, db: Session = Depends(get_db)):
+def signup(body: SignupBody, request: Request, db: Session = Depends(get_db)):
+    ok, msg = validate_password(body.password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
     existing = db.query(Seller).filter(Seller.email == body.email.strip().lower()).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -164,15 +232,23 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
     db.add(seller)
     db.commit()
     db.refresh(seller)
+    log_audit(db, seller.id, "signup", "account", body.email.strip().lower(), request)
     token = create_access_token(data={"sub": str(seller.id)})
     return TokenOut(access_token=token, seller=seller_to_out(seller))
 
 
 @router.post("/login", response_model=TokenOut)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     seller = db.query(Seller).filter(Seller.email == form_data.username.strip().lower(), Seller.is_active == True).first()
     if not seller or not verify_password(form_data.password, seller.password_hash):
+        if seller:
+            log_audit(db, seller.id, "login_fail", "account", "Invalid password", request)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    log_audit(db, seller.id, "login_ok", "account", None, request)
     token = create_access_token(data={"sub": str(seller.id)})
     return TokenOut(access_token=token, seller=seller_to_out(seller))
 
@@ -180,5 +256,104 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=SellerOut)
 def me(seller: Seller = Depends(get_current_seller)):
     return seller_to_out(seller)
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordBody, request: Request, db: Session = Depends(get_db)):
+    seller = db.query(Seller).filter(Seller.email == body.email.strip().lower(), Seller.is_active == True).first()
+    if not seller:
+        return {"message": "If an account exists with this email, you will receive a reset link."}
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _hash_reset_token(raw_token)
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+    rec = PasswordResetToken(seller_id=seller.id, token_hash=token_hash, expires_at=expires_at)
+    db.add(rec)
+    db.commit()
+    log_audit(db, seller.id, "password_reset_request", "account", None, request)
+    # In production send email with link. For dev, frontend can show link from reset_path.
+    reset_path = f"/reset-password?token={raw_token}"
+    return {
+        "message": "If an account exists with this email, you will receive a reset link.",
+        "reset_path": reset_path,
+    }
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordBody, request: Request, db: Session = Depends(get_db)):
+    ok, msg = validate_password(body.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    token_hash = _hash_reset_token(body.token.strip())
+    rec = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token_hash == token_hash,
+            PasswordResetToken.used_at == None,
+            PasswordResetToken.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link. Request a new one.")
+    seller = db.query(Seller).filter(Seller.id == rec.seller_id).first()
+    if not seller or not seller.is_active:
+        raise HTTPException(status_code=400, detail="Account not found or inactive.")
+    seller.password_hash = hash_password(body.new_password)
+    rec.used_at = datetime.utcnow()
+    db.commit()
+    log_audit(db, seller.id, "password_reset_used", "account", None, request)
+    return {"message": "Password updated. You can sign in with your new password."}
+
+
+@router.post("/change-password")
+def change_password(
+    body: ChangePasswordBody,
+    request: Request,
+    db: Session = Depends(get_db),
+    seller: Seller = Depends(get_current_seller),
+):
+    if not verify_password(body.old_password, seller.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    ok, msg = validate_password(body.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    seller.password_hash = hash_password(body.new_password)
+    db.commit()
+    log_audit(db, seller.id, "password_change", "account", None, request)
+    return {"message": "Password updated."}
+
+
+@router.get("/audit")
+def audit_events(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    seller: Seller = Depends(get_current_seller),
+):
+    rows = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.seller_id == seller.id)
+        .order_by(AuditEvent.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return {
+        "events": [
+            {
+                "id": r.id,
+                "action": r.action,
+                "resource": r.resource,
+                "detail": r.detail,
+                "ip_address": r.ip_address,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
+    }
 
 

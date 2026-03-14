@@ -120,6 +120,27 @@ class ReviewStats(Base):
     product = relationship("Product", back_populates="review_stats_rel")
 
 
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    seller_id = Column(Integer, ForeignKey("sellers.id"), nullable=False)
+    action = Column(String(64), nullable=False)  # login_ok, login_fail, signup, password_change, password_reset_request, password_reset_used
+    resource = Column(String(128), nullable=True)  # e.g. account, product:123
+    detail = Column(Text, nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    seller_id = Column(Integer, ForeignKey("sellers.id"), nullable=False)
+    token_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

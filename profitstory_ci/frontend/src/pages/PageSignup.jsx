@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
+import { validatePassword, PASSWORD_REQUIREMENTS } from '../utils/passwordPolicy';
 
 const PLATFORMS = [
   { value: 'amazon', label: 'Amazon India' },
@@ -33,8 +34,9 @@ export default function PageSignup() {
       setError('Please enter a valid email');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    const v = validatePassword(password);
+    if (!v.ok) {
+      setError(v.message);
       return false;
     }
     if (password !== confirmPassword) {
@@ -97,14 +99,14 @@ export default function PageSignup() {
           </label>
           <label>
             Password
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{PASSWORD_REQUIREMENTS.join(' · ')}</p>
             <div className="input-with-icon">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 8 characters"
+                placeholder="••••••••"
                 required
-                minLength={8}
               />
               <button type="button" className="icon-btn" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

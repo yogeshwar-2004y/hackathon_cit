@@ -71,6 +71,9 @@ export default function PageLogin() {
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
             Remember me
           </label>
+          <p className="auth-switch" style={{ marginTop: -8, marginBottom: 8 }}>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
