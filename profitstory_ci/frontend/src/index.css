@@ -273,6 +273,21 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+/* Visible text inputs (Product ASIN, Competitor ASINs) - light background so they are readable */
+.input-visible {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  font-size: 14px;
+  font-family: var(--font-sans);
+}
+.input-visible::placeholder {
+  color: #64748b;
+}
+
 /* Competitor List */
 .competitor-list {
   display: flex;

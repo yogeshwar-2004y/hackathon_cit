@@ -1,0 +1,269 @@
+[
+  {
+    "id": 1,
+    "flipkart": {
+      "product": {
+        "name": "boAt Airdopes 131 Bluetooth Truly Wireless Earbuds",
+        "fsn": "ACCF7HG3HFSZKZQG",
+        "price": 799,
+        "rating": 3.5,
+        "reviews": [
+          "Sound quality is decent for the price.",
+          "Battery life is good but the case feels cheap.",
+          "Sometimes the connection drops.",
+          "Very comfortable for workouts.",
+          "Mic quality during calls could be better."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "pTron Bassbuds Pro",
+          "fsn": "ACCG8KJ2HFSD8QWE",
+          "price": 899,
+          "rating": 3.5,
+          "reviews": [
+            "Bass is good but mids are weak.",
+            "Battery backup is impressive.",
+            "Left earbud disconnected once.",
+            "Nice compact design.",
+            "Touch controls sometimes lag."
+          ]
+        },
+        {
+          "name": "Noise Buds VS102",
+          "fsn": "ACCF9QW3JHGF7YTR",
+          "price": 1199,
+          "rating": 4.1,
+          "reviews": [
+            "Clear sound and good bass.",
+            "Case design looks premium.",
+            "Battery lasts long.",
+            "Fit can be slightly tight.",
+            "Good value overall."
+          ]
+        }
+      ]
+    },
+    "snapdeal": {
+      "product": {
+        "name": "JBL Tune 500BT Wireless Headphones",
+        "pid": "764539821",
+        "price": 2599,
+        "rating": 4.4,
+        "reviews": [
+          "Classic JBL sound signature.",
+          "Comfortable ear cushions.",
+          "Plastic build feels fragile.",
+          "Battery life is excellent.",
+          "Ear cups get warm after long use."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "Boult Audio ProBass Curve",
+          "pid": "982364517",
+          "price": 999,
+          "rating": 3.2,
+          "reviews": [
+            "Bass is strong but highs are dull.",
+            "Battery life is decent.",
+            "Bluetooth connection dropped twice.",
+            "Lightweight design.",
+            "Average build quality."
+          ]
+        },
+        {
+          "name": "boAt Rockerz 450",
+          "pid": "674839201",
+          "price": 1699,
+          "rating": 4.2,
+          "reviews": [
+            "Powerful bass output.",
+            "Comfortable ear cups.",
+            "Plastic body feels cheap.",
+            "Battery backup is great.",
+            "Good headphones overall."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "flipkart": {
+      "product": {
+        "name": "Realme Buds Q2 Bluetooth Earbuds",
+        "fsn": "ACCF7PL8DFGTR8YU",
+        "price": 1999,
+        "rating": 4.3,
+        "reviews": [
+          "Great bass and ANC.",
+          "Battery life is impressive.",
+          "Touch controls are sensitive.",
+          "Good gaming latency.",
+          "Earbuds feel bulky after long use."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "Redmi Earbuds 2C",
+          "fsn": "ACCJH7G3QWEPL8YT",
+          "price": 1299,
+          "rating": 4.0,
+          "reviews": [
+            "Balanced sound quality.",
+            "Affordable price.",
+            "Charging case feels weak.",
+            "Comfortable fit.",
+            "Battery could be better."
+          ]
+        },
+        {
+          "name": "boAt Airdopes 141",
+          "fsn": "ACCHT7Q2JHGDS8PL",
+          "price": 1299,
+          "rating": 4.2,
+          "reviews": [
+            "Strong bass performance.",
+            "Quick pairing works well.",
+            "Case scratches easily.",
+            "Battery backup is great.",
+            "Good budget TWS."
+          ]
+        }
+      ]
+    },
+    "snapdeal": {
+      "product": {
+        "name": "Sony WH-CH510 Bluetooth Headphones",
+        "pid": "865394210",
+        "price": 3499,
+        "rating": 4.6,
+        "reviews": [
+          "Very clear sound quality.",
+          "Battery lasts several days.",
+          "Plastic design looks basic.",
+          "Lightweight and comfortable.",
+          "No noise cancellation."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "Infinity Glide 500",
+          "pid": "598234760",
+          "price": 1999,
+          "rating": 4.1,
+          "reviews": [
+            "Deep bass output.",
+            "Stylish design.",
+            "Headband feels tight.",
+            "Battery life is good.",
+            "Nice headphones overall."
+          ]
+        },
+        {
+          "name": "Zebronics Zeb Thunder",
+          "pid": "764102389",
+          "price": 699,
+          "rating": 3.9,
+          "reviews": [
+            "Loud sound output.",
+            "Very affordable.",
+            "Build quality is average.",
+            "Battery backup is decent.",
+            "Not comfortable for long sessions."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "flipkart": {
+      "product": {
+        "name": "OnePlus Bullets Wireless Z2",
+        "fsn": "ACCF9YTR5PLM8QWE",
+        "price": 1999,
+        "rating": 4.5,
+        "reviews": [
+          "Fast charging is amazing.",
+          "Clear sound and strong bass.",
+          "Battery lasts all day.",
+          "Comfortable neckband.",
+          "Cable feels slightly thin."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "Realme Buds Wireless 2 Neo",
+          "fsn": "ACCQ8PLK7HFGT5WE",
+          "price": 1499,
+          "rating": 4.3,
+          "reviews": [
+            "Great bass performance.",
+            "Comfortable fit.",
+            "Battery backup is solid.",
+            "Pairing is fast.",
+            "Buttons feel slightly cheap."
+          ]
+        },
+        {
+          "name": "Mi Neckband Pro",
+          "fsn": "ACCT7YPL8JHGFD2Q",
+          "price": 1799,
+          "rating": 4.2,
+          "reviews": [
+            "ANC works surprisingly well.",
+            "Sound clarity is good.",
+            "Battery backup is nice.",
+            "Neckband feels bulky.",
+            "Decent for the price."
+          ]
+        }
+      ]
+    },
+    "snapdeal": {
+      "product": {
+        "name": "Philips SHB3075 Wireless Headphones",
+        "pid": "783640192",
+        "price": 2499,
+        "rating": 4.2,
+        "reviews": [
+          "Good bass output.",
+          "Comfortable design.",
+          "Battery life is decent.",
+          "Sound is balanced.",
+          "Build quality could improve."
+        ]
+      },
+      "competitors": [
+        {
+          "name": "Skullcandy Riff Wireless",
+          "pid": "574829103",
+          "price": 2999,
+          "rating": 4.1,
+          "reviews": [
+            "Nice audio clarity.",
+            "Lightweight design.",
+            "Battery is average.",
+            "Comfortable ear cups.",
+            "Overpriced slightly."
+          ]
+        },
+        {
+          "name": "Boat Rockerz 400",
+          "pid": "684910237",
+          "price": 1299,
+          "rating": 4.0,
+          "reviews": [
+            "Powerful bass output.",
+            "Affordable headphones.",
+            "Plastic feels cheap.",
+            "Battery backup is good.",
+            "Comfortable padding."
+          ]
+        }
+      ]
+    }
+  }
+]

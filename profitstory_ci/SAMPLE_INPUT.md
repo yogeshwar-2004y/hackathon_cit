@@ -85,10 +85,35 @@ Then open the SSE stream for logs/results:
 
 ---
 
+## Good our product / Bad competitor (real input for signals)
+
+Use this pairing to see **strong vulnerability signals**: our product has better reviews, competitor has more negative ones (quality issues, sound died, etc.).
+
+| Field | Value |
+|-------|--------|
+| **product_asin** | `B0863TXGM3` (Sony WH-1000XM4 – premium, generally good reviews) |
+| **competitor_asins** | `B0F7LY85KB` (boAt Rockerz 421 – budget; often more “sound died”, “one side stopped” type reviews) |
+
+**Copy-paste:**
+```
+product_asin: B0863TXGM3
+competitor_asins: B0F7LY85KB
+```
+
+**API:**
+```bash
+curl -X POST "http://localhost:8000/scan?product_asin=B0863TXGM3&competitor_asins=B0F7LY85KB"
+```
+
+The Detective node will compare sentiment and review content; you should see higher vulnerability / distress signals on the competitor and a clearer “our product vs weak competitor” picture.
+
+---
+
 ## Quick copy-paste (for UI or API)
 
 | Use case | product_asin | competitor_asins |
 |----------|--------------|------------------|
+| **Good us / Bad competitor (real)** | `B0863TXGM3` | `B0F7LY85KB` |
 | **Recommended (fewer captcha)** | `B0CP54XBWN` | `B0F7LY85KB` |
 | Same product, 2 competitors | `B0CP54XBWN` | `B0F7LY85KB,B0FC327SXQ` |
 | Different product | `B0863TXGM3` | `B0F7LY85KB` |

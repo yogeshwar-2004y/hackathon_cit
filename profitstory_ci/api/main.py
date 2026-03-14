@@ -81,7 +81,7 @@ def run_agent_workflow(job_id: str, product_asin: str, competitor_asins: list[st
 @app.post("/scan")
 async def trigger_scan(
     background_tasks: BackgroundTasks,
-    product_asin: str = "B0CP54XBWN",
+    product_asin: str = "B0863TXGM3",
     competitor_asins: str = "B0F7LY85KB"
 ):
     job_id = str(uuid.uuid4())[:8]
@@ -170,6 +170,8 @@ async def get_latest_result():
             "price": data.get("price"),
             "rating": data.get("rating"),
             "review_count": data.get("review_count", 0),
+            "fallback_platform": data.get("fallback_platform"),
+            "fallback_source_id": data.get("fallback_source_id"),
         }
         for asin, data in scraped.items()
     }

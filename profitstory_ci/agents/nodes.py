@@ -96,8 +96,18 @@ def detective_node(state: AgentState) -> dict:
         
         try:
             res = _llm_json.invoke(prompt)
-            raw = res.content if hasattr(res, "content") else str(res)
-            analysis = _parse_json_from_response(raw) if _use_gemini else json.loads(raw)
+            raw = res.content if hasattr(res, "content") else res
+            # Gemini can return content as list of parts [{type, text}]; normalize to string
+            if isinstance(raw, list):
+                content_str = "".join(
+                    (p.get("text", "") if isinstance(p, dict) else str(p))
+                    for p in raw
+                )
+            elif isinstance(raw, dict):
+                content_str = raw.get("text", json.dumps(raw))
+            else:
+                content_str = str(raw) if raw is not None else ""
+            analysis = _parse_json_from_response(content_str) if _use_gemini else json.loads(content_str)
             analysis["asin"] = asin
             signals.append(analysis)
             # Find minimum confidence among all competitors
@@ -245,5 +255,15 @@ def strategist_node(state: AgentState) -> dict:
     
     res = _llm.invoke(prompt)
     _emit_log("[STRATEGIST] Memo generated. Workflow complete.")
-    content = res.content if hasattr(res, "content") else str(res)
+    raw = res.content if hasattr(res, "content") else res
+    # Gemini can return content as list of parts [{type, text, extras}]; normalize to string
+    if isinstance(raw, list):
+        content = "".join(
+            (p.get("text", "") if isinstance(p, dict) else str(p))
+            for p in raw
+        )
+    elif isinstance(raw, dict):
+        content = raw.get("text", json.dumps(raw))
+    else:
+        content = str(raw) if raw is not None else ""
     return {"pivot_memo": content}

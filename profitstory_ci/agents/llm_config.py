@@ -1,6 +1,7 @@
 """
 LLM and embedding provider selection via env.
 Set LLM_PROVIDER=gemini and GOOGLE_API_KEY to use Gemini instead of OpenAI.
+Set GEMINI_MODEL=gemini-3.1-flash-lite-preview for Detective (and other nodes) to use Gemini 3.1 Flash Lite.
 Set EMBEDDING_PROVIDER=gemini to use Gemini embeddings (1536 dims for pgvector).
 """
 import os
@@ -10,18 +11,18 @@ def get_llm():
     provider = (os.environ.get("LLM_PROVIDER") or "openai").strip().lower()
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore[reportMissingImports]
-        model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        model = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
         return ChatGoogleGenerativeAI(model=model, temperature=0.2)
     else:
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 
 def get_llm_json():
-    """LLM that returns JSON (for Detective node)."""
+    """LLM that returns JSON (used by detective_node and any node needing structured output)."""
     provider = (os.environ.get("LLM_PROVIDER") or "openai").strip().lower()
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore[reportMissingImports]
-        model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        model = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
         llm = ChatGoogleGenerativeAI(model=model, temperature=0.2)
         # Gemini: ask for JSON in prompt; no bind(response_format) like OpenAI
         return llm

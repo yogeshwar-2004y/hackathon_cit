@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Play, Diamond, Circle, Triangle, Settings, LineChart, FileText, Bell, Users, Search, Target, Database } from 'lucide-react';
 import './index.css';
 
-// Default: 1 product + 1 competitor (fewer requests = less captcha; high-review products)
-const DEFAULT_PRODUCT_ASIN = 'B0CP54XBWN';   // boAt Airdopes 91 (lots of reviews)
-const DEFAULT_COMPETITOR_ASINS = 'B0F7LY85KB';  // boAt Rockerz 421 (one competitor only)
+// Default: good-our-product / bad-competitor (real input for vulnerability signals)
+const DEFAULT_PRODUCT_ASIN = 'B0863TXGM3';   // Sony WH-1000XM4 (premium, good reviews)
+const DEFAULT_COMPETITOR_ASINS = 'B0F7LY85KB';  // boAt Rockerz 421 (budget, often worse reviews)
 
 function DonutRing({ score, colorClass }) {
   const r = 23;
@@ -316,12 +316,16 @@ function App() {
               <div className="signals-list">
                 {results?.signals?.length > 0
                   ? results.signals.flatMap((sig) =>
-                      (sig.signals || []).map((s, i) => (
-                        <div key={`${sig.asin}-${i}`} className="signal-item">
-                          <div className={`signal-dot ${s.type === 'critical' ? 'red' : s.type === 'medium' ? 'yellow' : 'green'}`}></div>
-                          <div className="signal-text">{s.text}</div>
-                        </div>
-                      ))
+                      (sig.signals || []).map((s, i) => {
+                        const type = typeof s.type === 'string' ? s.type : 'low';
+                        const text = typeof s.text === 'string' ? s.text : (s.text?.text ?? JSON.stringify(s.text ?? s));
+                        return (
+                          <div key={`${sig.asin}-${i}`} className="signal-item">
+                            <div className={`signal-dot ${type === 'critical' ? 'red' : type === 'medium' ? 'yellow' : 'green'}`}></div>
+                            <div className="signal-text">{text}</div>
+                          </div>
+                        );
+                      })
                     )
                   : (
                     <div className="empty-state">Run an agent scan to see detected signals from competitor reviews and pricing.</div>
@@ -333,9 +337,10 @@ function App() {
               <div className="panel" style={{marginBottom: '24px'}}>
                 <div className="panel-header">AGENT LOG (live)</div>
                 <div className="agent-log" style={{ maxHeight: 200, overflow: 'auto', fontFamily: 'monospace', fontSize: 12 }}>
-                  {logs.map((line, i) => (
-                    <div key={i} style={{ marginBottom: 4 }}>{line.msg ?? JSON.stringify(line)}</div>
-                  ))}
+                  {logs.map((line, i) => {
+                    const msg = line.msg != null && typeof line.msg !== 'object' ? String(line.msg) : (line.msg?.text ?? JSON.stringify(line.msg ?? line));
+                    return <div key={i} style={{ marginBottom: 4 }}>{msg}</div>;
+                  })}
                 </div>
               </div>
             )}
@@ -349,12 +354,15 @@ function App() {
                 {backendLogs.length === 0 ? (
                   <div style={{ color: 'var(--text-muted)' }}>No backend logs yet. Run a scan or click Refresh.</div>
                 ) : (
-                  backendLogs.map((line, i) => (
-                    <div key={i} style={{ marginBottom: 4, color: line.status === 'error' ? 'var(--red)' : line.status === 'done' ? 'var(--green)' : 'var(--text-secondary)' }}>
-                      {line.time && <span style={{ opacity: 0.8 }}>{line.time} </span>}
-                      {line.msg ?? (line.status && `Status: ${line.status}`) ?? JSON.stringify(line)}
-                    </div>
-                  ))
+                  backendLogs.map((line, i) => {
+                    const msg = line.msg != null && typeof line.msg !== 'object' ? String(line.msg) : (line.msg?.text ?? (line.status && `Status: ${line.status}`) ?? JSON.stringify(line.msg ?? line));
+                    return (
+                      <div key={i} style={{ marginBottom: 4, color: line.status === 'error' ? 'var(--red)' : line.status === 'done' ? 'var(--green)' : 'var(--text-secondary)' }}>
+                        {line.time && <span style={{ opacity: 0.8 }}>{line.time} </span>}
+                        {msg}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -388,22 +396,25 @@ function App() {
             <>
               <div className="simulation-tabs">
                 {Object.entries(results.profit_sims).map(([key, sim]) => (
-                  <button key={key} className={`sim-tab-btn ${key === 'ads' ? 'active' : ''}`}>{sim.label}</button>
+                  <button key={key} className={`sim-tab-btn ${key === 'ads' ? 'active' : ''}`}>{typeof sim.label === 'string' ? sim.label : String(sim.label ?? '')}</button>
                 ))}
               </div>
               <div style={{ marginTop: 16 }}>
-                {Object.entries(results.profit_sims).map(([key, sim]) => (
-                  <div key={key} style={{ marginBottom: 12 }}>
-                    <strong>{sim.label}</strong> — Net: ₹{(sim.net_profit ?? 0).toLocaleString()} · <span style={{ color: sim.verdictColor }}>{sim.verdict}</span>
-                    {sim.rows?.length > 0 && (
-                      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                        {sim.rows.map((r, i) => (
-                          <span key={i} style={{ color: r.color }}>{r.label}: {r.val}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {Object.entries(results.profit_sims).map(([key, sim]) => {
+                  const verdictStr = typeof sim.verdict === 'string' ? sim.verdict : (sim.verdict?.text ?? String(sim.verdict ?? ''));
+                  return (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <strong>{typeof sim.label === 'string' ? sim.label : String(sim.label ?? '')}</strong> — Net: ₹{(sim.net_profit ?? 0).toLocaleString()} · <span style={{ color: sim.verdictColor }}>{verdictStr}</span>
+                      {sim.rows?.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                          {sim.rows.map((r, i) => (
+                            <span key={i} style={{ color: r.color }}>{typeof r.label === 'string' ? r.label : String(r.label ?? '')}: {typeof r.val === 'string' || typeof r.val === 'number' ? r.val : (r.val?.text ?? String(r.val ?? ''))}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           ) : (
@@ -420,7 +431,7 @@ function App() {
           {results?.pivot_memo ? (
             <div className="memo-cards" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
               <div className="memo-card rank-1" style={{ padding: 16, background: 'var(--panel-bg)', border: '1px solid var(--border-light)', borderRadius: 8 }}>
-                {results.pivot_memo}
+                {typeof results.pivot_memo === 'string' ? results.pivot_memo : (results.pivot_memo?.text ?? JSON.stringify(results.pivot_memo))}
               </div>
             </div>
           ) : (
@@ -474,7 +485,7 @@ function App() {
           <div className="panel">
             <div className="panel-header">AI PIVOT MEMO</div>
             {results?.pivot_memo ? (
-              <div style={{ whiteSpace: 'pre-wrap', padding: 16, background: 'var(--panel-bg)', borderRadius: 8 }}>{results.pivot_memo}</div>
+              <div style={{ whiteSpace: 'pre-wrap', padding: 16, background: 'var(--panel-bg)', borderRadius: 8 }}>{typeof results.pivot_memo === 'string' ? results.pivot_memo : (results.pivot_memo?.text ?? JSON.stringify(results.pivot_memo))}</div>
             ) : (
               <div className="empty-state">Run an agent scan to generate the pivot memo.</div>
             )}
@@ -489,13 +500,13 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {Object.entries(results.profit_sims).map(([key, sim]) => (
                   <div key={key} style={{ padding: 16, border: '1px solid var(--border-light)', borderRadius: 8 }}>
-                    <strong>{sim.label}</strong>
-                    <div style={{ marginTop: 8, color: sim.verdictColor }}>Verdict: {sim.verdict}</div>
+                    <strong>{typeof sim.label === 'string' ? sim.label : JSON.stringify(sim.label)}</strong>
+                    <div style={{ marginTop: 8, color: sim.verdictColor }}>Verdict: {typeof sim.verdict === 'string' ? sim.verdict : (sim.verdict?.text ?? JSON.stringify(sim.verdict ?? ''))}</div>
                     <div style={{ marginTop: 4 }}>Net profit vs baseline: ₹{(sim.net_profit ?? 0).toLocaleString()}</div>
                     {sim.rows?.length > 0 && (
                       <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                         {sim.rows.map((r, i) => (
-                          <span key={i} style={{ color: r.color }}>{r.label}: {r.val}</span>
+                          <span key={i} style={{ color: r.color }}>{typeof r.label === 'string' ? r.label : String(r.label)}: {typeof r.val === 'string' || typeof r.val === 'number' ? r.val : (r.val?.text ?? JSON.stringify(r.val ?? ''))}</span>
                         ))}
                       </div>
                     )}
@@ -518,12 +529,16 @@ function App() {
                   const name = results?.products?.[sig.asin]?.name || sig.asin;
                   return [
                     <div key={`h-${sig.asin}`} style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>{name}</div>,
-                    ...(sig.signals || []).map((s, i) => (
-                      <div key={`${sig.asin}-${i}`} className="signal-item">
-                        <div className={`signal-dot ${s.type === 'critical' ? 'red' : s.type === 'medium' ? 'yellow' : 'green'}`}></div>
-                        <div className="signal-text">{s.text}</div>
-                      </div>
-                    ))
+                    ...(sig.signals || []).map((s, i) => {
+                      const type = typeof s.type === 'string' ? s.type : 'low';
+                      const text = typeof s.text === 'string' ? s.text : (s.text?.text ?? JSON.stringify(s.text ?? s));
+                      return (
+                        <div key={`${sig.asin}-${i}`} className="signal-item">
+                          <div className={`signal-dot ${type === 'critical' ? 'red' : type === 'medium' ? 'yellow' : 'green'}`}></div>
+                          <div className="signal-text">{text}</div>
+                        </div>
+                      );
+                    })
                   ];
                 })}
               </div>
@@ -577,10 +592,11 @@ function App() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 type="text"
+                className="input-visible"
                 value={embeddingsFilterAsin}
                 onChange={(e) => setEmbeddingsFilterAsin(e.target.value.trim())}
                 placeholder="Filter by ASIN (e.g. B0863TXGM3)"
-                style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--panel-bg)', minWidth: 200 }}
+                style={{ minWidth: 200 }}
               />
               <button className="btn-scan" onClick={fetchEmbeddings} disabled={embeddingsLoading}>
                 {embeddingsLoading ? 'Loading...' : 'Refresh'}
@@ -629,33 +645,45 @@ function App() {
                 <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Your product ASIN</label>
                 <input
                   type="text"
+                  className="input-visible"
                   value={productAsin}
                   onChange={(e) => setProductAsin(e.target.value.trim())}
-                  placeholder="e.g. B0863TXGM3"
-                  style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--panel-bg)' }}
+                  placeholder="e.g. B0863TXGM3 or Flipkart FSN / Snapdeal PID"
                 />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Competitor ASINs (comma-separated)</label>
                 <input
                   type="text"
+                  className="input-visible"
                   value={competitorAsins}
                   onChange={(e) => setCompetitorAsins(e.target.value.trim())}
-                  placeholder="e.g. B0CP54XBWN,B0FC327SXQ"
-                  style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--panel-bg)' }}
+                  placeholder="e.g. B0CP54XBWN,B0FC327SXQ or FSN/PID"
                 />
               </div>
+              {results?.products && Object.keys(results.products).some((a) => results.products[a].fallback_source_id) && (
+                <div style={{ fontSize: 12, color: 'var(--brand)', padding: 10, background: 'rgba(245,158,11,0.1)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
+                  <strong>Last scan used fallback (use these IDs in the boxes above for Flipkart/Snapdeal):</strong>
+                  <ul style={{ margin: '6px 0 0 0', paddingLeft: 18 }}>
+                    {Object.entries(results.products)
+                      .filter(([, p]) => p.fallback_source_id)
+                      .map(([asin, p]) => (
+                        <li key={asin}>{asin}: {p.fallback_platform} {p.fallback_platform === 'flipkart' ? 'FSN' : 'PID'} = <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>{p.fallback_source_id}</code></li>
+                      ))}
+                  </ul>
+                </div>
+              )}
               <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
-                <strong style={{ color: 'var(--text-secondary)' }}>Recommended (1 product + 1 competitor = less captcha):</strong>
+                <strong style={{ color: 'var(--green)' }}>Good our product / Bad competitor (default — real input):</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: 18 }}>
-                  <li>B0CP54XBWN — boAt Airdopes 91 (default product)</li>
-                  <li>B0F7LY85KB — boAt Rockerz 421 (default competitor)</li>
+                  <li>B0863TXGM3 — Sony WH-1000XM4 (our product, premium, good reviews)</li>
+                  <li>B0F7LY85KB — boAt Rockerz 421 (competitor, budget, often worse reviews)</li>
                 </ul>
                 <strong style={{ color: 'var(--text-secondary)', display: 'block', marginTop: 8 }}>More ASINs (earphones/headphones):</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: 18 }}>
-                  <li>B0863TXGM3 — Sony WH-1000XM4</li>
+                  <li>B0CP54XBWN — boAt Airdopes 91</li>
                   <li>B0FC327SXQ — boAt Rockerz 412</li>
-                  <li>B0DBLDPP1T — EarFun Air Pro 4</li>
+                  <li>B0863TXGM3 — Sony WH-1000XM4</li>
                 </ul>
               </div>
               <button className="btn-scan" onClick={() => setActiveTab('INTELLIGENCE')}>

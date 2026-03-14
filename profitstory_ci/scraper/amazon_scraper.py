@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import json
 import requests
 from bs4 import BeautifulSoup
 from textblob import TextBlob  # type: ignore[reportMissingImports]
@@ -128,6 +129,80 @@ def _generate_mock(asin: str) -> dict:
         "review_spike": 0,
         "scraped_at": time.time()
     }
+
+_FALLBACK_PRODUCTS_CACHE = None
+
+
+def _load_fallback_products() -> dict | None:
+    """Load dummy Flipkart/Snapdeal product + competitors from JSON (used when Amazon fails and no env fallback URL)."""
+    global _FALLBACK_PRODUCTS_CACHE
+    if _FALLBACK_PRODUCTS_CACHE is not None:
+        return _FALLBACK_PRODUCTS_CACHE
+    for base in (os.path.dirname(__file__), os.path.join(os.path.dirname(__file__), "..")):
+        path = os.path.join(os.path.abspath(base), "fallback_products.json")
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    _FALLBACK_PRODUCTS_CACHE = json.load(f)
+                return _FALLBACK_PRODUCTS_CACHE
+            except Exception as e:
+                print(f"[SCRAPER] Failed to load fallback_products.json: {e}")
+                break
+    _FALLBACK_PRODUCTS_CACHE = {}
+    return _FALLBACK_PRODUCTS_CACHE
+
+
+def _dummy_fallback_from_json(asin: str) -> dict | None:
+    """Return pipeline-shaped dict from fallback_products.json. JSON can be array of items (each with flipkart/snapdeal) or dict. Uses fsn (Flipkart) / pid (Snapdeal) from JSON and includes them in metadata for input/display."""
+    raw = _load_fallback_products()
+    if not raw:
+        return None
+    # Support array format: [ { "id", "flipkart", "snapdeal" }, ... ]
+    if isinstance(raw, list) and len(raw) > 0:
+        data = random.choice(raw)
+    elif isinstance(raw, dict) and ("flipkart" in raw or "snapdeal" in raw):
+        data = raw
+    else:
+        return None
+    platform = random.choice(["flipkart", "snapdeal"])
+    section = data.get(platform) if isinstance(data, dict) else None
+    if not section or not isinstance(section, dict):
+        return None
+    product = section.get("product")
+    competitors = section.get("competitors") or []
+    if not product or not isinstance(product, dict):
+        return None
+    if not competitors or random.random() < 1.0 / (1 + len(competitors)):
+        entry = product
+    else:
+        entry = random.choice(competitors)
+    reviews = entry.get("reviews") or []
+    sentiments = [TextBlob(r).sentiment.polarity for r in reviews if r] if reviews else []
+    avg_sentiment = round(sum(sentiments) / len(sentiments), 3) if sentiments else 0.0
+    name = entry.get("name") or f"Product {asin}"
+    price = float(entry.get("price", 0))
+    rating = float(entry.get("rating", 0))
+    # FSN (Flipkart) or pid (Snapdeal) for display / input replacement
+    fallback_source_id = entry.get("fsn") if platform == "flipkart" else entry.get("pid")
+    if fallback_source_id is not None:
+        fallback_source_id = str(fallback_source_id)
+    print(f"[SCRAPER] Using dummy {platform} fallback for {asin}: {name[:50]}... (id={fallback_source_id}, {len(reviews)} reviews)")
+    result = {
+        "asin": asin,
+        "name": name,
+        "price": price,
+        "rating": rating,
+        "reviews": reviews,
+        "avg_sentiment": avg_sentiment,
+        "review_count": len(reviews),
+        "review_spike": len(reviews),
+        "scraped_at": time.time(),
+    }
+    if fallback_source_id:
+        result["fallback_platform"] = platform
+        result["fallback_source_id"] = fallback_source_id
+    return result
+
 
 def _is_amazon_block_page(html: str) -> bool:
     """True if response looks like a captcha/robot check page."""
@@ -361,9 +436,11 @@ def scrape_product(asin: str) -> dict:
             print(f"[SCRAPER] Snapdeal fallback OK: {data.get('name', '')[:50]}... ({len(data.get('reviews', []))} reviews)")
             return data
         except Exception as sd_err:
-            print(f"[SCRAPER] Snapdeal fallback failed: {sd_err}. Using mock data.")
-    if not flipkart_input and not snapdeal_input:
-        print("[SCRAPER] Set FLIPKART_FALLBACK_* or SNAPDEAL_FALLBACK_* to use Flipkart/Snapdeal when Amazon blocks.")
+            print(f"[SCRAPER] Snapdeal fallback failed: {sd_err}.")
+    # 5) Dummy Flipkart/Snapdeal from JSON (product + competitors with reviews)
+    data = _dummy_fallback_from_json(asin)
+    if data:
+        return data
     print("[SCRAPER] Using mock data.")
     return MOCK_PRODUCTS.get(asin, _generate_mock(asin))
 
