@@ -15,8 +15,12 @@ def detective_should_loop(state: AgentState) -> str:
     return "vuln_calc"
 
 def should_run_profit_sim(state: AgentState) -> str:
-    product_data = state.get("scraped_data", {}).get(state["product_asin"], {})
-    if product_data.get("cost"):
+    # Run profit sim when we have seller-set cost/price (my_cost, my_price) or scraped product data with price.
+    # Cost is from the product form (my_cost), not from scrapers, so check state first.
+    if state.get("my_cost") is not None or state.get("my_price") is not None:
+        return "profit_sim"
+    product_data = state.get("scraped_data", {}).get(state.get("product_asin"), {})
+    if product_data.get("price") is not None or product_data.get("cost"):
         return "profit_sim"
     return "strategist"
 

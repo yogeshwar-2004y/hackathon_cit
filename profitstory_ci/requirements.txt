@@ -2,6 +2,11 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 python-multipart==0.0.9
+# Auth (bcrypt directly; passlib has compatibility issues with bcrypt 4.1+ on Python 3.14)
+python-jose[cryptography]==3.3.0
+bcrypt>=4.0,<5
+# ORM (>=2.0.31 for Python 3.13/3.14 compatibility; 2.0.30 fails with __firstlineno__/symbol)
+sqlalchemy>=2.0.31,<3
 
 # Agent
 langgraph>=0.2.0

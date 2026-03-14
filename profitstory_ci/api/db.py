@@ -21,19 +21,17 @@ def init_db():
     # Enable pgvector extension
     cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
-    # Price history
+    # Scrape log by asin (legacy; ORM price_history/review_stats are per product in db.database)
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS price_history (
+    CREATE TABLE IF NOT EXISTS scrape_price_history (
         id      SERIAL PRIMARY KEY,
         asin    TEXT    NOT NULL,
         price   REAL    NOT NULL,
         date    TEXT    NOT NULL
     )
     """)
-
-    # Review statistics
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS review_stats (
+    CREATE TABLE IF NOT EXISTS scrape_review_stats (
         id             SERIAL PRIMARY KEY,
         asin           TEXT    NOT NULL,
         avg_sentiment  REAL,
@@ -74,7 +72,7 @@ def save_price_to_db(asin: str, price: float, date_str: str):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO price_history (asin, price, date) VALUES (%s, %s, %s)",
+        "INSERT INTO scrape_price_history (asin, price, date) VALUES (%s, %s, %s)",
         (asin, price, date_str)
     )
     conn.commit()
@@ -84,7 +82,7 @@ def save_review_stats(asin: str, avg_sentiment: float, review_count: int, rating
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO review_stats (asin, avg_sentiment, review_count, rating, review_spike, scraped_at) VALUES (%s, %s, %s, %s, %s, %s)",
+        "INSERT INTO scrape_review_stats (asin, avg_sentiment, review_count, rating, review_spike, scraped_at) VALUES (%s, %s, %s, %s, %s, %s)",
         (asin, avg_sentiment, review_count, rating, review_spike, scraped_at)
     )
     conn.commit()
@@ -104,7 +102,7 @@ def get_price_history(asin: str, limit: int = 30) -> list:
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute(
-        "SELECT date, price FROM price_history WHERE asin = %s ORDER BY date DESC LIMIT %s",
+        "SELECT date, price FROM scrape_price_history WHERE asin = %s ORDER BY date DESC LIMIT %s",
         (asin, limit)
     )
     rows = cursor.fetchall()

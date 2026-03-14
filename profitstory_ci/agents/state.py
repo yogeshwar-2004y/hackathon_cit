@@ -11,3 +11,12 @@ class AgentState(TypedDict):
     pivot_memo: str
     confidence: float
     loop_count: int
+    # Multi-tenant / product-scoped (optional; default None)
+    seller_id: Optional[int]
+    product_id: Optional[int]
+    my_price: Optional[float]
+    my_cost: Optional[float]
+    monthly_units: Optional[int]
+    # Multi-platform: which platform per product/competitor (optional)
+    product_platform: Optional[str]
+    competitor_platforms: Optional[Dict[str, str]]  # platform_id -> platform

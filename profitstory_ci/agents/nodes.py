@@ -29,13 +29,19 @@ def _parse_json_from_response(content: str) -> dict:
 def watchman_node(state: AgentState) -> dict:
     _emit_log("[WATCHMAN] Starting scrape and embed phase...")
     scraped_data = state.get("scraped_data", {})
-    asins_to_scrape = [state["product_asin"]] + state["competitor_asins"]
-    
+    product_asin = state["product_asin"]
+    competitor_asins = state["competitor_asins"]
+    asins_to_scrape = [product_asin] + competitor_asins
+    product_platform = (state.get("product_platform") or "amazon").strip().lower()
+    competitor_platforms = state.get("competitor_platforms") or {}
     total_reviews = 0
     for asin in asins_to_scrape:
         if asin not in scraped_data:
+            platform = product_platform if asin == product_asin else competitor_platforms.get(asin, "amazon")
+            if isinstance(platform, str):
+                platform = platform.strip().lower() or "amazon"
             _emit_log(f"[WATCHMAN] Scraping {asin}...")
-            data = scrape_product(asin)
+            data = scrape_product(platform, asin)
             scraped_data[asin] = data
             
             # Save to SQLite
@@ -121,6 +127,10 @@ def detective_node(state: AgentState) -> dict:
     return {"signals": signals, "confidence": overall_confidence}
 
 
+# Competitors with overall rating <= this are treated as "bleeding" (negative impact).
+BLEEDING_RATING_THRESHOLD = 2.5
+
+
 def vuln_calc_node(state: AgentState) -> dict:
     _emit_log("[VULN_CALC] Calculating mathematical vulnerability scores...")
     scraped_data = state["scraped_data"]
@@ -130,26 +140,49 @@ def vuln_calc_node(state: AgentState) -> dict:
     for asin in competitors:
         data = scraped_data.get(asin, {})
         
+        # Actual rating from scraped data (e.g. 1–5 stars). Low rating = bleeding.
+        try:
+            rating = float(data.get("rating") or 0)
+        except (TypeError, ValueError):
+            rating = 0.0
+        is_low_rating = rating > 0 and rating <= BLEEDING_RATING_THRESHOLD
+        
         neg_sentiment = max(0, -data.get("avg_sentiment", 0))
         neg_score = min(neg_sentiment * 100, 100) * 0.4
         
         # Simulate price drop pct. In a real scenario, compare to history DB.
-        # We will use 0.2 (20% drop) as a dummy for the hackathon MVP if not in DB, 
-        # but realistically, you query DB. Here we just hardcode an approximation.
-        price_drop_pct = 20.0 
+        price_drop_pct = 20.0
         price_drop_score = min(price_drop_pct * 3, 100) * 0.3
         
         review_spike_score = min(data.get("review_spike", 0) * 2, 100) * 0.2
         
-        # Simulate rating drop.
-        rating_drop = 0.5
-        rating_drop_score = min(rating_drop * 25, 100) * 0.1
+        # Rating drop: use actual low rating as strong signal; else small default.
+        if is_low_rating:
+            # 2-star (~2.0) or below = max contribution to vulnerability (bleeding).
+            rating_drop_score = 100 * 0.1  # full 10% component
+        else:
+            rating_drop = 0.5
+            rating_drop_score = min(rating_drop * 25, 100) * 0.1
         
-        total_score = neg_score + price_drop_score + review_spike_score + rating_drop_score
+        # Bleeding logic: low overall star rating = negative impact → force into Bleeding.
+        low_rating_bleed_score = 0.0
+        if is_low_rating:
+            # Add a large component so total pushes into Bleeding (score > 70) and we mark explicitly.
+            low_rating_bleed_score = min((BLEEDING_RATING_THRESHOLD - rating) * 40, 55)  # up to ~55 points
+        
+        total_score = neg_score + price_drop_score + review_spike_score + rating_drop_score + low_rating_bleed_score
         
         label = "Healthy"
-        if total_score > 70:
+        bleeding = False
+        bleeding_reason = None
+        if is_low_rating:
             label = "Bleeding"
+            bleeding = True
+            bleeding_reason = "low_rating"
+        elif total_score > 70:
+            label = "Bleeding"
+            bleeding = True
+            bleeding_reason = "high_vulnerability"
         elif total_score > 40:
             label = "Vulnerable"
         elif total_score > 20:
@@ -158,75 +191,103 @@ def vuln_calc_node(state: AgentState) -> dict:
         vuln_scores[asin] = {
             "score": round(total_score, 2),
             "label": label,
+            "bleeding": bleeding,
+            "bleeding_reason": bleeding_reason,
+            "rating": round(rating, 1) if rating else None,
             "components": {
                 "neg_sentiment": round(neg_score, 2),
                 "price_drop": round(price_drop_score, 2),
                 "review_spike": round(review_spike_score, 2),
-                "rating_drop": round(rating_drop_score, 2)
+                "rating_drop": round(rating_drop_score, 2),
+                "low_rating_bleed": round(low_rating_bleed_score, 2),
             }
         }
-        _emit_log(f"[VULN_CALC] {asin} Score = {total_score:.2f} → {label}")
+        _emit_log(f"[VULN_CALC] {asin} Score = {total_score:.2f} → {label}" + (" (low rating)" if is_low_rating else ""))
         
     return {"vuln_scores": vuln_scores}
 
 
 def profit_sim_node(state: AgentState) -> dict:
     _emit_log("[PROFIT_SIM] Simulating net ROI across strategies...")
-    product_data = state["scraped_data"].get(state["product_asin"], {})
-    
-    cost = product_data.get("cost", 550)
-    my_price = product_data.get("price", 999)
+    scraped_data = state["scraped_data"]
+    product_data = scraped_data.get(state["product_asin"], {})
+    # Use seller-editable price/cost/units from state when set (multi-tenant product-scoped run)
+    cost = state.get("my_cost") if state.get("my_cost") is not None else product_data.get("cost") or 550.0
+    my_price = state.get("my_price") if state.get("my_price") is not None else product_data.get("price") or 999.0
+    baseline_units = state.get("monthly_units") if state.get("monthly_units") is not None else 40
+    cost = float(cost)
+    my_price = float(my_price)
+    baseline_units = max(1, int(baseline_units))
     margin = my_price - cost
-    baseline_units = 40
     baseline_profit = margin * baseline_units
-    
-    sims = {}
-    
-    # Strategy A - Match
-    match_price = 699
+
+    # Match price = lowest competitor price from scraped data (risk if we match)
+    competitor_prices = []
+    for asin in state.get("competitor_asins", []):
+        d = scraped_data.get(asin, {})
+        p = d.get("price")
+        if p is not None:
+            try:
+                competitor_prices.append(float(p))
+            except (TypeError, ValueError):
+                pass
+    if competitor_prices:
+        match_price = min(competitor_prices)
+    else:
+        match_price = round(my_price * 0.85, 0)  # assume 15% undercut if no competitor data
+    match_price = max(match_price, cost + 1)
     match_margin = match_price - cost
-    est_units_match = 50
+    # If we match competitor price: assume some volume gain but margin drop
+    est_units_match = min(baseline_units + int(baseline_units * 0.25), baseline_units + 20)
     net_match = (match_margin * est_units_match) - baseline_profit
+    match_vol_pct = round((est_units_match - baseline_units) / baseline_units * 100) if baseline_units else 0
+
+    sims = {}
+
+    # Strategy A - Match (competitor) price — profit at risk
     sims["match"] = {
         "label": "Match Price",
-        "net_profit": net_match,
-        "verdict": "AVOID",
+        "net_profit": round(net_match, 0),
+        "verdict": "AVOID" if net_match < 0 else "RISKY",
         "verdictColor": "#E24B4A",
         "rows": [
-            {"label": "Margin Impact", "pct": max(0, match_margin/margin*100), "color": "#E24B4A", "val": f"₹{match_margin}/unit"},
-            {"label": "Volume Impact", "pct": 100, "color": "#185FA5", "val": "+25%"},
+            {"label": "Match at", "color": "#E24B4A", "val": f"₹{match_price:,.0f}"},
+            {"label": "Margin/unit", "color": "#E24B4A", "val": f"₹{match_margin:,.0f}"},
+            {"label": "Volume est.", "color": "#185FA5", "val": f"+{match_vol_pct}%"},
         ]
     }
-    
-    # Strategy B - Hold
+
+    # Strategy B - Hold current price
     sims["hold"] = {
         "label": "Hold Price",
         "net_profit": 0,
         "verdict": "SAFE",
         "verdictColor": "#BA7517",
         "rows": [
-            {"label": "Margin Impact", "pct": 100, "color": "#12B76A", "val": f"₹{margin}/unit"},
-            {"label": "Volume Impact", "pct": 80, "color": "#BA7517", "val": "0%"},
+            {"label": "Your price", "color": "#12B76A", "val": f"₹{my_price:,.0f}"},
+            {"label": "Margin/unit", "color": "#12B76A", "val": f"₹{margin:,.0f}"},
+            {"label": "Baseline", "color": "#BA7517", "val": f"{baseline_units} units/mo"},
         ]
     }
-    
-    # Strategy C - Ad Campaign
-    ad_spend = 3000
-    est_units_ad = 65
+
+    # Strategy C - Ad campaign (hold price + spend for volume)
+    ad_spend = max(2000, int(baseline_profit * 0.15))
+    est_units_ad = baseline_units + int(baseline_units * 0.5)
     net_ad = (margin * est_units_ad) - ad_spend - baseline_profit
+    ad_vol_pct = round((est_units_ad - baseline_units) / baseline_units * 100) if baseline_units else 50
     sims["ads"] = {
         "label": "Ad Campaign",
-        "net_profit": net_ad,
-        "verdict": "RECOMMENDED",
+        "net_profit": round(net_ad, 0),
+        "verdict": "RECOMMENDED" if net_ad > 0 else "OPTIONAL",
         "verdictColor": "#12B76A",
         "rows": [
-            {"label": "Margin Impact", "pct": 100, "color": "#12B76A", "val": f"₹{margin}/unit"},
-            {"label": "Volume Impact", "pct": 100, "color": "#12B76A", "val": "+62%"},
-            {"label": "Ad Spend", "pct": 30, "color": "#E24B4A", "val": "₹3,000"},
+            {"label": "Margin/unit", "color": "#12B76A", "val": f"₹{margin:,.0f}"},
+            {"label": "Volume est.", "color": "#12B76A", "val": f"+{ad_vol_pct}%"},
+            {"label": "Ad Spend", "color": "#E24B4A", "val": f"₹{ad_spend:,}"},
         ]
     }
-    
-    _emit_log(f"[PROFIT_SIM] ad_campaign: +₹{net_ad} net (RECOMMENDED)")
+
+    _emit_log(f"[PROFIT_SIM] Match: ₹{net_match:,.0f} | Hold: ₹0 | Ad campaign: ₹{net_ad:,.0f}")
     return {"profit_sims": sims}
 
 
@@ -242,6 +303,8 @@ def strategist_node(state: AgentState) -> dict:
     Vulnerabilities: {json.dumps(vuln_scores)}
     Signals: {json.dumps(signals)}
     Simulations: {json.dumps(profit_sims)}
+    
+    Important: Competitors with "bleeding": true or "bleeding_reason": "low_rating" have overall ~2-star (or very low) ratings — treat them as negative impact / bleeding; recommend capitalizing on their weakness (e.g. quality messaging, trust) rather than chasing their price.
     
     Format requirements: Markdown text.
     Sections:

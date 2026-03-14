@@ -356,7 +356,7 @@ def _fetch_reviews_direct(session: requests.Session, asin: str, pages: int = 3) 
     return reviews[:50]
 
 
-def scrape_product(asin: str) -> dict:
+def scrape_amazon(asin: str) -> dict:
     """
     Scrape product data from Amazon. Tries: (1) Direct Amazon.in + BeautifulSoup,
     (2) RapidAPI, (3) ScraperAPI; then Flipkart/Snapdeal fallbacks or mock.
@@ -443,6 +443,24 @@ def scrape_product(asin: str) -> dict:
         return data
     print("[SCRAPER] Using mock data.")
     return MOCK_PRODUCTS.get(asin, _generate_mock(asin))
+
+
+def scrape_product(platform: str, platform_id: str) -> dict:
+    """
+    Route to the correct scraper based on platform.
+    platform: amazon | flipkart | snapdeal
+    """
+    platform = (platform or "amazon").strip().lower()
+    if platform == "amazon":
+        return scrape_amazon(platform_id)
+    if platform == "flipkart" and scrape_flipkart_product:
+        # Flipkart scraper expects url or pid and asin_for_key (we use platform_id as key)
+        return scrape_flipkart_product(platform_id, asin_for_key=platform_id)
+    if platform == "snapdeal" and scrape_snapdeal_product:
+        return scrape_snapdeal_product(platform_id, asin_for_key=platform_id)
+    # Default to Amazon
+    return scrape_amazon(platform_id)
+
 
 def _rapidapi_get(path: str, params: dict) -> dict:
     """Call RapidAPI Real-Time Amazon Data. Returns JSON.
