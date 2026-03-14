@@ -7,11 +7,13 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 
 # import
-from app.schemas.user import User, UserLogin, Token
-from app.core.dependencies import get_db
-from app.core.settings import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
-from app.api.endpoints.user import functions as user_functions
+from schemas.user import User, UserLogin, Token
+from core.dependencies import get_db
+from core.settings import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+#from endpoints.user import functions as user_functions
 
+
+from api.endpoints.user import functions as user_functions
 
 auth_module = APIRouter()
 

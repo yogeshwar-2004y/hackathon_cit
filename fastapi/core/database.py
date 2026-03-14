@@ -1,13 +1,25 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
+import os
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sqlite.db"
-# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
+load_dotenv()
+
+db_url = os.getenv("SQLALCHEMY_DATABASE_URL")
 
 engine = create_engine(
-	SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    db_url,
+    pool_pre_ping=True
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# TEST CONNECTION
+with engine.connect() as conn:
+    print("Connected to DB")
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
 Base = declarative_base()
