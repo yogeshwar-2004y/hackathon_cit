@@ -1,0 +1,33 @@
+# Core
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# Agent
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+langsmith
+
+# Vector DB
+chromadb==0.5.0
+
+# Scraping
+requests>=2.31.0,<2.33
+beautifulsoup4==4.12.3
+textblob==0.18.0
+
+# Scheduler
+apscheduler==3.10.4
+
+# Data
+pandas==2.2.2
+
+# Dev
+python-dotenv==1.0.1
+
+psycopg2-binary==2.9.11
+pgvector==0.4.2
+
