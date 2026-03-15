@@ -268,10 +268,11 @@ def profit_sim_node(state: AgentState) -> dict:
         ]
     }
 
-    # Strategy B - Hold current price
+    # Strategy B - Hold current price — display baseline profit as main value (not 0)
     sims["hold"] = {
         "label": "Hold Price",
         "net_profit": 0,
+        "display_value": round(baseline_profit, 0),  # show baseline profit instead of 0 in UI
         "verdict": "SAFE",
         "verdictColor": "#BA7517",
         "rows": [

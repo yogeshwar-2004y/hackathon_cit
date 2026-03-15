@@ -222,7 +222,8 @@ async def job_result(job_id: str, db: Session = Depends(get_db), seller=Depends(
     """Return result for a run (from agent_runs or legacy agent_results)."""
     run = db.query(AgentRun).filter(AgentRun.run_id == job_id, AgentRun.seller_id == seller.id).first()
     if run:
-        if run.vuln_scores:
+        has_result = run.status == "done" and (run.vuln_scores or run.profit_sims or (run.pivot_memo and run.pivot_memo.strip()))
+        if has_result:
             def _safe_json(val, default):
                 if val is None:
                     return default

@@ -184,6 +184,21 @@ export default function PageIntelligence() {
     else setResults(null);
   }, [runId, fetchResult]);
 
+  // Poll for result until we have profit_sims and pivot_memo (in case DB commit lags after stream "done")
+  useEffect(() => {
+    if (!runId) return;
+    const hasFullResult = results?.status === 'success' && results?.profit_sims && Object.keys(results.profit_sims).length > 0;
+    if (hasFullResult) return;
+    const interval = setInterval(() => {
+      fetchResult(runId);
+    }, 3000);
+    const timeout = setTimeout(() => clearInterval(interval), 120000); // stop after 2 min
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [runId, results?.status, results?.profit_sims, fetchResult]);
+
   useEffect(() => {
     if (runId) fetchBackendLogs();
   }, [runId, fetchBackendLogs]);
@@ -324,8 +339,10 @@ export default function PageIntelligence() {
                       const verdictStr = typeof sim.verdict === 'string' ? sim.verdict : (sim.verdict?.text ?? String(sim.verdict ?? ''));
                       const labelStr = typeof sim.label === 'string' ? sim.label : String(sim.label ?? '');
                       const net = sim.net_profit ?? 0;
-                      const isPositive = net > 0;
-                      const isNegative = net < 0;
+                      const displayVal = sim.display_value != null ? sim.display_value : net;
+                      const useDisplayValue = key === 'hold' && sim.display_value != null;
+                      const isPositive = useDisplayValue ? displayVal > 0 : net > 0;
+                      const isNegative = !useDisplayValue && net < 0;
                       return (
                         <div key={key} className="profit-sim-card">
                           <div className="profit-sim-card-header">
@@ -333,9 +350,11 @@ export default function PageIntelligence() {
                             <span className="profit-sim-verdict" style={{ color: sim.verdictColor || 'var(--text-secondary)' }}>{verdictStr}</span>
                           </div>
                           <div className={`profit-sim-net ${isPositive ? 'positive' : isNegative ? 'negative' : ''}`}>
-                            {isPositive ? '+' : ''}₹{Number(net).toLocaleString()}
+                            {!useDisplayValue && net > 0 ? '+' : ''}₹{Number(displayVal).toLocaleString()}
                           </div>
-                          <div className="profit-sim-net-label">Net impact vs baseline</div>
+                          <div className="profit-sim-net-label">
+                            {useDisplayValue ? 'Monthly profit (baseline)' : 'Net impact vs baseline'}
+                          </div>
                           {sim.rows?.length > 0 && (
                             <ul className="profit-sim-rows">
                               {sim.rows.map((r, i) => (
