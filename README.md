@@ -20,6 +20,7 @@ Audit Logs ,Password Policies
 Automated Competitor Detection 
 Profit – Risk Margin 
 
+blob:https://web.whatsapp.com/33721475-0bd4-4309-a969-29683518d34b
 
 
 
