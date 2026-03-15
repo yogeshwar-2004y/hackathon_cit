@@ -8,11 +8,11 @@ Conventional scraping pipelines extract price and rating. They answer 'what happ
 We Solve the problem using an agentic layer autonomously synthesizes these disconnected signals in real-time, transforming raw data into proactive pivot strategies before market opportunities evaporate.
 Competitive Intelligence platform scrapes the product and competitors ,embeds reviews into database ,runs an AI agent pipeline that produce :
 
-Vulnerability Score - Score 0–100 computed to identify bleeding or stable or vulnerable or healthy .
-Profit At Risk Simulation - Three strategies (Match Price, Hold Price, Ad Campaign) with net ₹ impact and bar/pie charts.
-Review Signals - Understand WHY a competitor changed price .Distress pricing & Strategic pricing .
-AI Pivot Memo - Takes all the input signals turns them into profit protected action plan for sellers .
-Multi-tenant : Each seller has their own products and competitors; scans and results are isolated .
+- Vulnerability Score - Score 0–100 computed to identify bleeding or stable or vulnerable or healthy .
+- Profit At Risk Simulation - Three strategies (Match Price, Hold Price, Ad Campaign) with net ₹ impact and bar/pie charts.
+- Review Signals - Understand WHY a competitor changed price .Distress pricing & Strategic pricing .
+- AI Pivot Memo - Takes all the input signals turns them into profit protected action plan for sellers .
+- Multi-tenant : Each seller has their own products and competitors; scans and results are isolated .
 
 Key  Features :
 Real-time Scraping (Amazon/Flipkart/Snapdeal)
