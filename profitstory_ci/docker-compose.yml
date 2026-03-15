@@ -1,0 +1,30 @@
+services:
+
+  # FastAPI Backend 
+  backend:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: dharaneesh2574/cit_hackathon_backend:latest
+    container_name: cit_hackathon_backend
+    env_file:
+      - .env                       
+    ports:
+      - "8000:8000"                
+    restart: unless-stopped
+ 
+
+  # React Frontend 
+  frontend:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: dharaneesh2574/cit_hackathon_frontend:latest
+    container_name: cit_hackathon_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
